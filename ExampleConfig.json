@@ -1,0 +1,5 @@
+{
+	client_id:     "<insert-your-client-id-here>",
+	client_secret: "<insert-your-client-secret-here>",
+	scopes:        "wl.offline_access wl.skydrive_update wl.contacts_skydrive"
+}
