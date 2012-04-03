@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="liveconnect : A higher-level, managed code, desktop-application oriented API on top of the LiveConnect REST API." />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>liveconnect</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/bcdev-com/liveconnect">Fork Me on GitHub</a>
+
+          <h1 id="project_title">liveconnect</h1>
+          <h2 id="project_tagline">A higher-level, managed code, desktop-application oriented API on top of the LiveConnect REST API.</h2>
+
+          <section id="downloads">
+            <a class="zip_download_link" href="https://github.com/bcdev-com/liveconnect/zipball/master">Download this project as a .zip file</a>
+            <a class="tar_download_link" href="https://github.com/bcdev-com/liveconnect/tarball/master">Download this project as a tar.gz file</a>
+          </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>Motivation</h1>
+
+<p>The current beta of the LiveConnect V5 SDK provides a very thin managed layer over the over the REST API, and the provided library is only usable in Metro-style applications.   While this will be important eventually, a retail release of Windows 8 is still a long way off.   This project attempts to provide a higher level of abstraction in a managed API for the Windows Live services exposed via Live Connect.</p>
+
+<h1>Limitations</h1>
+
+<p>The first big restriction is that this library is currently exclusively synchronous.   Once the C# 5 compiler with async/await support comes closer to release this will change.   For now, the viable use-cases involve command-line tools or dedicated background threads.</p>
+
+<p>This is a pre-release library written on top of a pre-release API.  It works for me, but it might eat all your sensitive files tomorrow.</p>
+
+<h1>Architecture</h1>
+
+<p>There are two layers to the API which may be used independently:
+* The LiveConnect class handles authentication/consent and provides methods to put and get strings, byte arrays and automatically JSON-serialized classes.   It also provides static helper methods for configuration management and Live Connect application creation.
+* Service-specific classes, of which SkyDrive is the only one supported in the initial release.  SkyDrive provides an API that mimics the standard File, DirectoryInfo and FileInfo classes from System.IO.</p>
+
+<p>The code may be compiled three ways – WPF, WinForms, or no UI libraries at all.   The browser dialog used for authentication adapts to either UI library.   When compiled without any UI libraries, an OAuth refresh token may be provided or the access token may be provided by an external tool.</p>
+
+<p>To facilitate the UI-free model, the LiveConnect class includes an entry point and can be compiled as a standalone executable bound to either WPF or WinForms.   This resulting tool will create config files with the necessary refresh token or produce short-term access tokens.</p>
+
+<h1>Configuration</h1>
+
+<p>You’ll notice there are no project files.   It will be easiest to explore from a PowerShell console, but the source is meant to be built into other projects.
+The classes work with JSON formatted configuration strings.   Before you can try this code out you will need to create an application at <a href="http://manage.dev.live.com">http://manage.dev.live.com</a> and copy your client_id and client_secret into a local config file.  See ExampleConfig.json for a starting point.</p>
+
+<h1>Example</h1>
+
+<div class="highlight">
+<pre><span class="k">using</span> <span class="nn">System</span><span class="p">;</span>
+<span class="k">class</span> <span class="nc">App</span> <span class="p">{</span>
+<span class="na">    [STAThread]</span>
+    <span class="k">static</span> <span class="kt">int</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">args</span><span class="p">.</span><span class="n">Length</span> <span class="p">!=</span> <span class="m">1</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">Console</span><span class="p">.</span><span class="n">Error</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"usage: TestApp &lt;json-config-file&gt;"</span><span class="p">);</span>
+            <span class="k">return</span> <span class="m">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">sd</span> <span class="p">=</span> <span class="k">new</span> <span class="n">SkyDrive</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="m">0</span><span class="p">]))</span> <span class="p">{</span>
+                <span class="n">DisplayFolder</span><span class="p">(</span><span class="n">sd</span><span class="p">.</span><span class="n">Root</span><span class="p">);</span>
+                <span class="kt">var</span> <span class="n">testFolder</span> <span class="p">=</span> <span class="n">sd</span><span class="p">.</span><span class="n">Root</span><span class="p">.</span><span class="n">CreateSubfolder</span><span class="p">(</span><span class="s">"LiveConnectTesting"</span><span class="p">);</span>
+                <span class="n">testFolder</span><span class="p">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="s">"test.txt"</span><span class="p">,</span> <span class="s">"Hello, World!"</span><span class="p">);</span>
+                <span class="n">sd</span><span class="p">.</span><span class="n">Root</span><span class="p">.</span><span class="n">Refresh</span><span class="p">();</span>
+                <span class="kt">var</span> <span class="n">fileContents</span> <span class="p">=</span> <span class="n">sd</span><span class="p">.</span><span class="n">GetFile</span><span class="p">(</span><span class="s">"/LiveConnectTesting/test.txt"</span><span class="p">).</span><span class="n">ReadAllText</span><span class="p">();</span>
+                <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">fileContents</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">return</span> <span class="m">0</span><span class="p">;</span>
+        <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">Console</span><span class="p">.</span><span class="n">Error</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">Message</span><span class="p">);</span>
+            <span class="k">return</span> <span class="m">1</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">static</span> <span class="k">void</span> <span class="nf">DisplayFolder</span><span class="p">(</span><span class="n">SkyDriveFolder</span> <span class="n">folder</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"{0}/ - {1} children"</span><span class="p">,</span> <span class="n">folder</span><span class="p">.</span><span class="n">FullName</span><span class="p">,</span> <span class="n">folder</span><span class="p">.</span><span class="n">Count</span><span class="p">);</span>
+        <span class="k">foreach</span><span class="p">(</span><span class="kt">var</span> <span class="n">subfolder</span> <span class="k">in</span> <span class="n">folder</span><span class="p">.</span><span class="n">GetFolders</span><span class="p">())</span> 
+            <span class="n">DisplayFolder</span><span class="p">(</span><span class="n">subfolder</span><span class="p">);</span>
+        <span class="k">foreach</span><span class="p">(</span><span class="kt">var</span> <span class="n">file</span> <span class="k">in</span> <span class="n">folder</span><span class="p">.</span><span class="n">GetFiles</span><span class="p">())</span> 
+            <span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">"{0} - {1} bytes"</span><span class="p">,</span> <span class="n">file</span><span class="p">.</span><span class="n">FullName</span><span class="p">,</span> <span class="n">file</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre>
+</div>
+
+
+<h1>Future</h1>
+
+<p>The original motivation for this library was to provide a PowerShell provider to enable rich, easy scripting and command line access to SkyDrive.   Look for this in a future release.  Wrappers for services other than SkyDrive are likely as well.   In particular, the Calendar is probably next.</p>
+
+<h1>Contact</h1>
+
+<p>I can be reached via email at blake@bcdev.com or feel free to open an issue in this project.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">liveconnect maintained by <a href="https://github.com/bcdev-com">bcdev-com</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
